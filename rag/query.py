@@ -203,7 +203,7 @@ class QueryEngine:
         vector_store,
         llm_backend: LLMBackend,
         top_k: int = 5,
-        similarity_threshold: float = 0.3,
+        similarity_threshold: float = 0.0,
         max_context_length: int = 4096,
         system_prompt: Optional[str] = None,
     ):

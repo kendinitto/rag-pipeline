@@ -14,7 +14,7 @@ class Retriever:
         self,
         vector_store,
         top_k: int = 5,
-        similarity_threshold: float = 0.3,
+        similarity_threshold: float = 0.0,
         use_reranking: bool = False,
     ):
         self.vector_store = vector_store
