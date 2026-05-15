@@ -6,7 +6,9 @@ RAG Pipeline CLI — Ingest documents and query with local LLM.
 import argparse
 import sys
 import os
+import textwrap
 from pathlib import Path
+from shutil import get_terminal_size
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -23,6 +25,43 @@ from rag.query import QueryEngine, LocalServerBackend
 
 
 DEFAULT_PERSIST_DIR = "./rag_data"
+TERM_WIDTH = get_terminal_size((80, 20)).columns
+
+
+def wrap_text(text: str, width: int = TERM_WIDTH, indent: str = "") -> str:
+    """Wrap text to terminal width with optional indent."""
+    indent_len = len(indent)
+    wrap_width = max(width - indent_len, 20)
+    lines = text.split("\n")
+    wrapped = []
+    for line in lines:
+        if line.strip() == "":
+            wrapped.append("")
+        else:
+            wrapped_lines = textwrap.wrap(line, width=wrap_width)
+            for wl in wrapped_lines:
+                wrapped.append(f"{indent}{wl}")
+    return "\n".join(wrapped)
+
+
+def print_section(title: str, char: str = "─"):
+    """Print a section header."""
+    print(f"\n{title}")
+    print(char * min(len(title) + 4, TERM_WIDTH))
+
+
+def print_sources(sources: list[dict], show_preview: bool = False):
+    """Print source documents in a readable format."""
+    print_section(f"SOURCES ({len(sources)})")
+    for i, src in enumerate(sources, 1):
+        source_name = src.get("source", "unknown")
+        score = src.get("score", 0)
+        print(f"  {i}. {source_name}")
+        print(f"     Score: {score:.3f}")
+        if show_preview:
+            preview = src.get("text_preview", "")[:150]
+            print(f"     {wrap_text(preview, indent='       ')}")
+        print()
 
 
 def setup_backends(args):
@@ -62,15 +101,15 @@ def run_ingest(args):
     )
 
     if path.is_dir():
-        print(f"Ingesting directory: {args.path}")
+        print(f"  Ingesting directory: {args.path}")
         total = ingestor.ingest_directory(str(path))
     else:
-        print(f"Ingesting file: {args.path}")
+        print(f"  Ingesting file: {args.path}")
         total = ingestor.ingest_file(str(path))
 
-    print(f"Ingested {total} chunks from {len(ingestor.ingested_files)} file(s)")
+    print(f"  Ingested {total} chunks from {len(ingestor.ingested_files)} file(s)")
     if args.store == "chroma":
-        print(f"Stored in ChromaDB at: {args.persist_dir or DEFAULT_PERSIST_DIR}")
+        print(f"  Stored in ChromaDB at: {args.persist_dir or DEFAULT_PERSIST_DIR}")
 
 
 def run_query(args):
@@ -89,23 +128,22 @@ def run_query(args):
         top_k=args.top_k,
     )
 
+    print_section(f"Q: {args.question}")
+
     if args.sources:
         result = engine.query_with_sources(args.question)
-        print(f"\nQuestion: {result['question']}\n")
-        print(f"Answer: {result['answer']}\n")
-        print(f"Sources ({len(result['sources'])}):")
-        for i, src in enumerate(result["sources"], 1):
-            print(f"  [{i}] {src['source']} (score: {src['score']:.3f})")
-            print(f"      {src['text_preview']}")
+        print_section("ANSWER")
+        print(wrap_text(result["answer"]))
+        print_sources(result["sources"], show_preview=True)
     elif args.stream:
-        print(f"\nQuery: {args.question}\n")
+        print()
         for token in engine.query(args.question, stream=True):
             print(token, end="", flush=True)
         print()
     else:
-        print(f"\nQuery: {args.question}\n")
+        print()
         answer = engine.query(args.question, stream=False)
-        print(answer)
+        print(wrap_text(answer))
 
 
 def run_rag(args):
@@ -130,14 +168,16 @@ def run_rag(args):
         chunk_strategy=chunk_strategy,
     )
 
+    print_section("INGESTING")
     if path.is_dir():
-        print(f"Ingesting directory: {args.path}")
+        print(f"  Directory: {args.path}")
         total = ingestor.ingest_directory(str(path))
     else:
-        print(f"Ingesting file: {args.path}")
+        print(f"  File: {args.path}")
         total = ingestor.ingest_file(str(path))
 
-    print(f"Ingested {total} chunks from {len(ingestor.ingested_files)} file(s)\n")
+    print(f"  Chunks: {total}")
+    print(f"  Files: {len(ingestor.ingested_files)}")
 
     # Query
     llm = LocalServerBackend(
@@ -152,21 +192,22 @@ def run_rag(args):
         top_k=args.top_k,
     )
 
-    print(f"Query: {args.question}\n")
+    print_section(f"Q: {args.question}")
+
     if args.stream:
+        print()
         for token in engine.query(args.question, stream=True):
             print(token, end="", flush=True)
         print()
     elif args.sources:
         result = engine.query_with_sources(args.question)
-        print(f"Answer: {result['answer']}\n")
-        print(f"Sources ({len(result['sources'])}):")
-        for i, src in enumerate(result["sources"], 1):
-            print(f"  [{i}] {src['source']} (score: {src['score']:.3f})")
-            print(f"      {src['text_preview']}")
+        print_section("ANSWER")
+        print(wrap_text(result["answer"]))
+        print_sources(result["sources"], show_preview=True)
     else:
+        print()
         answer = engine.query(args.question, stream=False)
-        print(answer)
+        print(wrap_text(answer))
 
 
 def main():
