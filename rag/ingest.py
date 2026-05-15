@@ -269,8 +269,8 @@ class ChromaVectorStore(VectorStore):
                 "source": c.source,
                 "chunk_index": c.chunk_index,
                 "total_chunks": c.total_chunks,
-                "page": c.page,
-                **c.metadata,
+                **{k: v for k, v in {"page": c.page}.items() if v is not None},
+                **(c.metadata or {}),
             }
             for c in chunks
         ]
