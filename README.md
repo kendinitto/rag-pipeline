@@ -38,17 +38,33 @@ Retrieval-Augmented Generation system with configurable chunking strategies, mul
 pip install -r requirements.txt
 ```
 
-### 2. Ingest Documents
+### 2. Quick Start (Ingest + Query)
 
 ```bash
-# Ingest sample docs (in-memory store)
-python cli.py ingest sample_docs --store memory
+# Ingest docs and query in one command
+python cli.py rag sample_docs "What is the system architecture?" --server http://localhost:8080
 
-# Ingest with persistent ChromaDB
-python cli.py ingest ./my-docs --store chroma --persist-dir ./rag_data --chunk-size 512
+# Stream the response
+python cli.py rag ./my-docs "How does the API work?" --server http://localhost:8080 --stream
 
-# Semantic chunking for technical docs
-python cli.py ingest ./docs --store chroma --persist-dir ./rag_data --semantic
+# Show source citations
+python cli.py rag ./docs "What are the requirements?" --server http://localhost:8080 --sources
+```
+
+### 3. Separate Ingest and Query
+
+```bash
+# Ingest once (persists to ./rag_data by default)
+python cli.py ingest ./docs
+
+# Query anytime (reads from persisted store)
+python cli.py query "What is the architecture?" --server http://localhost:8080
+
+# Stream response
+python cli.py query "How does the API work?" --server http://localhost:8080 --stream
+
+# Show sources
+python cli.py query "What are the security requirements?" --sources
 ```
 
 ### 3. Query
